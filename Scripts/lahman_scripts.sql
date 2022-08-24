@@ -31,12 +31,32 @@ WHERE s2.schoolname = 'Vanderbilt University' AND salary IS NOT NULL
 GROUP BY namefirst, namelast, schoolname
 ORDER BY SUM(salary) DESC;
 
-/* 4. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
+ -- 4. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
+-- ANSWER: 
+-- Outfield putouts: 29,560
+-- Infield putouts: 58,934
+-- Battery putouts: 41,424
+
+SELECT
+    (SELECT SUM(po)
+    FROM fielding 
+    WHERE pos = 'OF' AND yearid = 2016) AS outfield_putouts,
+    (SELECT SUM(po) 
+     FROM fielding
+     WHERE pos IN ('SS','1B','2B','3B') AND yearid = 2016) AS infield_putouts,
+     (SELECT SUM(po)
+     FROM fielding 
+     WHERE pos IN ('C','P') AND yearid = 2016) AS battery_putouts
+ FROM fielding
+ GROUP BY outfield_putouts, infield_putouts, battery_putouts;
    
-5. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends?
+ -- 5. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends?
+ -- ANSWER: 
    
 
-6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
+
+
+/* 6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
 	
 
 7.  From 1970 – 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
