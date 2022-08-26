@@ -17,18 +17,21 @@ GROUP BY namefirst, namelast, g_all, teamid, height, t.name
 ORDER BY height;
 
  -- 3. Find all players in the database who played at Vanderbilt University. Create a list showing each player’s first and last names as well as the total salary they earned in the major leagues. Sort this list in descending order by the total salary earned. Which Vanderbilt player earned the most money in the majors?
--- ANSWER: David Price, $245,553,888
+-- ANSWER: David Price, $81,851,296
 
-SELECT namefirst, namelast, SUM(salary), schoolname
-FROM people AS p
-LEFT JOIN salaries AS s
-ON p.playerid = s.playerid
-LEFT JOIN collegeplaying AS c
-ON p.playerid = c.playerid
-LEFT JOIN schools AS s2
-ON c.schoolid = s2.schoolid
-WHERE s2.schoolname = 'Vanderbilt University' AND salary IS NOT NULL
-GROUP BY namefirst, namelast, schoolname
+SELECT namefirst, namelast, SUM(salary)
+FROM
+    (SELECT playerid, namefirst, namelast, schoolname
+    FROM people AS p
+    LEFT JOIN collegeplaying 
+    USING (playerid)
+    LEFT JOIN schools
+    USING (schoolid)
+    WHERE schoolname = 'Vanderbilt University'
+    GROUP BY playerid, namefirst, namelast, schoolname) AS vandy
+LEFT JOIN salaries 
+USING (playerid)
+GROUP BY namefirst, namelast
 ORDER BY SUM(salary) DESC;
 
  -- 4. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016.
@@ -53,7 +56,31 @@ SELECT
  -- 5. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends?
  -- ANSWER: 
    
+SELECT yearid, AVG(so), AVG(HR)
+FROM pitching
+GROUP BY yearid
+ORDER BY yearid;
 
+WITH games AS
+(SELECT yearid, SUM(g)/2 AS total_games_season
+FROM teams
+WHERE yearid > 1920
+GROUP BY yearid
+ORDER BY yearid),
+
+so AS
+(SELECT yearid, SUM(so) AS total_strikeouts
+FROM pitching
+WHERE yearid >= 1920 
+GROUP BY yearid
+ORDER BY yearid)
+
+SELECT so.yearid, total_games_season/total_strikeouts AS strikeouts_per_game
+FROM games AS g
+INNER JOIN so AS so
+ON g.yearid = so.yearid
+GROUP BY so.yearid, total_games_season, total_strikeouts
+ORDER BY so.yearid;
 
 
 /* 6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
