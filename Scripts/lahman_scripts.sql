@@ -56,40 +56,44 @@ SELECT
  -- 5. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends?
  -- ANSWER: 
    
-SELECT yearid, AVG(so), AVG(HR)
-FROM pitching
-GROUP BY yearid
-ORDER BY yearid;
-
 WITH games AS
-(SELECT yearid, SUM(g)/2 AS total_games_season
+(SELECT yearid/10*10 AS decade, SUM(g)/2 AS total_games
 FROM teams
 WHERE yearid > 1920
-GROUP BY yearid
-ORDER BY yearid),
+GROUP BY decade
+ORDER BY decade),
 
 so AS
-(SELECT yearid, SUM(so) AS total_strikeouts
+(SELECT yearid/10*10 AS decade, SUM(so) AS total_strikeouts, SUM(HR) AS total_home_runs
 FROM pitching
 WHERE yearid >= 1920 
-GROUP BY yearid
-ORDER BY yearid)
+GROUP BY decade
+ORDER BY decade)
 
-SELECT so.yearid, total_games_season/total_strikeouts AS strikeouts_per_game
+SELECT g.decade, total_games, total_strikeouts, CAST(total_strikeouts AS float)/CAST(total_games AS float) AS strikeouts_per_game, CAST(total_home_runs AS float)/CAST(total_games AS float) AS home_runs_per_game
 FROM games AS g
 INNER JOIN so AS so
-ON g.yearid = so.yearid
-GROUP BY so.yearid, total_games_season, total_strikeouts
-ORDER BY so.yearid;
+ON g.decade = so.decade
+GROUP BY g.decade, total_games, total_strikeouts, total_home_runs
+ORDER BY g.decade;
 
-
-/* 6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
+ -- 6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
+-- ANSWER: Chris Owings
 	
+SELECT playerid, namefirst, namelast, sb, cs, CAST(sb AS float)/CAST(sb+cs AS float) AS perc_sb_success
+FROM batting
+JOIN people
+USING (playerid)
+WHERE yearid = 2016 AND sb+cs >= 20
+GROUP BY playerid, namefirst, namelast, sb, cs
+ORDER BY perc_sb_success DESC;
 
-7.  From 1970 – 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
+-- 7.  From 1970 – 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
+-- ANSWER: 
 
 
-8. Using the attendance figures from the homegames table, find the teams and parks which had the top 5 average attendance per game in 2016 (where average attendance is defined as total attendance divided by number of games). Only consider parks where there were at least 10 games played. Report the park name, team name, and average attendance. Repeat for the lowest 5 average attendance.
+
+/* 8. Using the attendance figures from the homegames table, find the teams and parks which had the top 5 average attendance per game in 2016 (where average attendance is defined as total attendance divided by number of games). Only consider parks where there were at least 10 games played. Report the park name, team name, and average attendance. Repeat for the lowest 5 average attendance.
 
 
 9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
