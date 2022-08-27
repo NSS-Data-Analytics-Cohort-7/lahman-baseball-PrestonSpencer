@@ -98,7 +98,7 @@ ORDER BY perc_sb_success DESC;
 -- ANSWER: 
 -- Largest number of wins - 116
 -- Smallest number of wins - 63 | Why so low? Only 110 games played in season
--- How often did team with most wins win World Series? 10 times | % of time? 
+-- How often did team with most wins win World Series? 10 times | % of time? 21.7% 
 
 SELECT yearid, MAX(w), wswin
 FROM teams
@@ -133,7 +133,7 @@ WHERE yearid BETWEEN 1970 AND 2016 AND wswin = 'Y'
 GROUP BY yearid, wswin
 ORDER BY yearid, MAX(w))
 
-SELECT yearid, most_wins_yes, yes_winning.wswin
+SELECT yearid, most_wins_yes, yes_winning.wswin, CAST(10 AS float)/CAST(2016-1970 AS float) AS perc_ws_winner_had_most_wins
 FROM no_winning
 JOIN yes_winning
 USING (yearid)
@@ -196,18 +196,43 @@ JOIN NL
 USING (namefirst)
 GROUP BY namefirst, NL.namelast, AL.teamid, NL.awardid, al_award, nl_award
 
-/* 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+-- 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+-- ANSWER: 
+
+WITH most AS
+(SELECT playerid, namefirst, namelast, MAX(HR) AS hr_count, yearid,
+    CASE WHEN yearid = '2016' THEN '2016_most'
+    ELSE 'Not_2016' END AS Was_most_in_2016
+FROM people
+JOIN batting 
+USING (playerid)
+GROUP BY playerid, namefirst, namelast, yearid
+ORDER BY was_most_in_2016, hr_count DESC),
+
+years AS
+(SELECT playerid, COUNT(DISTINCT yearid) AS years_played
+FROM batting
+GROUP BY playerid)
+
+SELECT namefirst, namelast, hr_count
+FROM most
+JOIN years
+USING (playerid)
+WHERE years_played >= 10 AND Was_most_in_2016 = '2016_most' AND hr_count > 0
+GROUP BY namefirst, namelast, hr_count
+ORDER BY hr_count DESC
 
 
-**Open-ended questions**
+/* **Open-ended questions**
 
 11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
 
 12. In this question, you will explore the connection between number of wins and attendance.
-    <ol type="a">
-      <li>Does there appear to be any correlation between attendance at home games and number of wins? </li>
-      <li>Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.</li>
-    </ol>
+Does there appear to be any correlation between attendance at home games and number of wins? 
+Do teams that win the world series see a boost in attendance the following year? 
+What about teams that made the playoffs? 
+Making the playoffs means either being a division winner or a wild card winner.
+    
 
 
 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
