@@ -223,16 +223,41 @@ GROUP BY namefirst, namelast, hr_count
 ORDER BY hr_count DESC
 
 
-/* **Open-ended questions**
+-- **Open-ended questions**
 
-11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+-- 11. Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+-- ANSWER: 
 
-12. In this question, you will explore the connection between number of wins and attendance.
-Does there appear to be any correlation between attendance at home games and number of wins? 
-Do teams that win the world series see a boost in attendance the following year? 
-What about teams that made the playoffs? 
-Making the playoffs means either being a division winner or a wild card winner.
+WITH salaries AS
+(SELECT s.yearid, s.teamid, SUM(salary) AS total_team_salary
+FROM salaries AS s
+WHERE yearid >= 2000
+GROUP BY s.yearid, s.teamid
+ORDER BY s.yearid, total_team_salary DESC),
+
+wins AS
+(SELECT t.yearid, t.teamid, w
+FROM teams AS t
+WHERE yearid >= 2000
+GROUP BY t.yearid, t.teamid, w
+ORDER BY t.yearid)
+
+SELECT salaries.yearid, salaries.teamid, total_team_salary, w, RANK() OVER(ORDER BY total_team_salary DESC) AS salary_rank, RANK() OVER(ORDER BY w DESC) AS w_rank, RANK() OVER(ORDER BY total_team_salary DESC) + RANK() OVER(ORDER BY w DESC) AS total_rank
+FROM salaries
+JOIN wins
+USING (yearid, teamid)
+WHERE salaries.yearid = 2000
+GROUP BY salaries.yearid, salaries.teamid, total_team_salary, w
+ORDER BY salaries.yearid, total_team_salary DESC, w DESC
+
+-- 12. In this question, you will explore the connection between number of wins and attendance. Does there appear to be any correlation between attendance at home games and number of wins? Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
+-- ANSWER:
+
+SELECT yearid, teamid, w, attendance
+FROM teams
+GROUP BY yearid, teamid, w, attendance
+ORDER BY yearid
     
 
 
-13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
+/* 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
