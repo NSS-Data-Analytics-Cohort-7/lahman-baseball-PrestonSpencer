@@ -77,6 +77,12 @@ ON g.decade = so.decade
 GROUP BY g.decade, total_games, total_strikeouts, total_home_runs
 ORDER BY g.decade;
 
+SELECT yearid/10*10 AS decade, SUM(g)/2 AS total_games, SUM(so) AS total_strikeouts, SUM(HR) AS total_home_runs, CAST(SUM(so) AS float)/CAST(SUM(g)/2 AS float) AS strikeouts_per_game, CAST(SUM(HR) AS float)/CAST(SUM(g)/2 AS float) AS home_runs_per_game
+FROM teams 
+WHERE yearid >= 1920 
+GROUP BY decade
+ORDER BY decade
+
  -- 6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
 -- ANSWER: Chris Owings
 	
@@ -92,7 +98,7 @@ ORDER BY perc_sb_success DESC;
 -- ANSWER: 
 -- Largest number of wins - 116
 -- Smallest number of wins - 63 | Why so low? Only 110 games played in season
--- How often did team with most wins 
+-- How often did team with most wins win World Series? 10 times | % of time? 
 
 SELECT yearid, MAX(w), wswin
 FROM teams
@@ -113,32 +119,84 @@ GROUP BY yearid, wswin
 HAVING AVG(g) > 110
 ORDER BY MIN(w);
 
-SELECT yearid, MAX(w),
-    CASE WHEN wswin = 'Y' THEN 'Yes'
-    WHEN wswin = 'N' THEN 'No'
-    END AS did_most_win 
+WITH no_winning AS
+(SELECT yearid, MAX(w) AS most_wins_no, wswin
 FROM teams
-WHERE yearid BETWEEN 1970 AND 2016 
+WHERE yearid BETWEEN 1970 AND 2016 AND wswin = 'N'
 GROUP BY yearid, wswin
-ORDER BY yearid, MAX(w) DESC;
+ORDER BY yearid, MAX(w) DESC),
 
-SELECT yearid, w, wswin
+yes_winning AS
+(SELECT yearid, MAX(w) AS most_wins_yes, wswin
 FROM teams
 WHERE yearid BETWEEN 1970 AND 2016 AND wswin = 'Y'
-GROUP BY yearid, w, wswin
+GROUP BY yearid, wswin
+ORDER BY yearid, MAX(w))
 
-SELECT DISTINCT yearid, MAX(w), wswin
-FROM teams
-WHERE yearid BETWEEN 1970 AND 2016
-GROUP BY DISTINCT yearid, wswin
+SELECT yearid, most_wins_yes, yes_winning.wswin
+FROM no_winning
+JOIN yes_winning
+USING (yearid)
+WHERE most_wins_yes > most_wins_no
+GROUP BY yearid, most_wins_yes, yes_winning.wswin
 ORDER BY yearid
 
-/* 8. Using the attendance figures from the homegames table, find the teams and parks which had the top 5 average attendance per game in 2016 (where average attendance is defined as total attendance divided by number of games). Only consider parks where there were at least 10 games played. Report the park name, team name, and average attendance. Repeat for the lowest 5 average attendance.
+-- 8. Using the attendance figures from the homegames table, find the teams and parks which had the top 5 average attendance per game in 2016 (where average attendance is defined as total attendance divided by number of games). Only consider parks where there were at least 10 games played. Report the park name, team name, and average attendance. Repeat for the lowest 5 average attendance.
+-- ANSWER: 
 
+WITH parks AS
+(SELECT team, park, attendance/games AS attendance_per_game, park_name
+FROM homegames
+JOIN parks
+USING (park)
+WHERE year = 2016 AND games >= 10
+GROUP BY team, park, attendance, games, park_name
+ORDER BY attendance_per_game DESC),
 
-9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
+team AS
+(SELECT teamid, franchid, franchname
+FROM teams
+JOIN teamsfranchises 
+USING (franchid)
+GROUP BY teamid, franchid, franchname)
 
-10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+SELECT parks.park_name, team.franchname, attendance_per_game
+FROM parks
+JOIN team
+ON parks.team = team.teamid
+GROUP BY parks.park_name, team.franchname, attendance_per_game
+ORDER BY attendance_per_game DESC
+
+-- 9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
+-- ANSWER: 
+
+WITH AL as
+(SELECT namefirst, namelast, awardid, m.lgid AS al_award, m.teamid
+FROM awardsmanagers
+JOIN managers AS m
+USING (playerid)
+JOIN people
+USING (playerid)
+WHERE awardid LIKE 'TSN%' AND m.lgid = 'AL' 
+GROUP BY namefirst, namelast, awardid, m.lgid, m.teamid),
+
+NL as 
+(SELECT namefirst, namelast, awardid, m.lgid AS nl_award, m.teamid
+FROM awardsmanagers
+JOIN managers AS m
+USING (playerid)
+JOIN people
+USING (playerid)
+WHERE awardid LIKE 'TSN%' AND m.lgid = 'NL' 
+GROUP BY namefirst, namelast, awardid, m.lgid, m.teamid)
+
+SELECT namefirst, NL.namelast, AL.teamid, NL.awardid, al_award, nl_award
+FROM AL 
+JOIN NL
+USING (namefirst)
+GROUP BY namefirst, NL.namelast, AL.teamid, NL.awardid, al_award, nl_award
+
+/* 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
 
 
 **Open-ended questions**
