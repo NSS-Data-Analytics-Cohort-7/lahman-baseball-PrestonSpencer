@@ -254,11 +254,38 @@ ORDER BY salaries.yearid, total_team_salary DESC, w DESC
 -- 12. In this question, you will explore the connection between number of wins and attendance. Does there appear to be any correlation between attendance at home games and number of wins? Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
 -- ANSWER:
 
-SELECT yearid, teamid, w, attendance, wswin, divwin, wcwin
+SELECT yearid, teamid, ROUND(AVG(attendance)/ghome) AS avg_attendance, ROUND(w) AS wins, ROUND((AVG(attendance)/ghome)/w) AS fans_per_win
+-- wswin, divwin, wcwin
 FROM teams
-GROUP BY yearid, teamid, w, attendance, wswin, divwin, wcwin
-ORDER BY yearid DESC
+GROUP BY yearid, teamid, ghome, w
+ORDER BY yearid DESC, fans_per_win DESC, avg_attendance DESC, wins DESC
 
-    
+SELECT yearid, teamid, wswin, ROUND(AVG(attendance)/ghome) AS avg_attendance, LEAD(ROUND(AVG(attendance)/ghome),1) OVER (PARTITION BY teamid ORDER BY attendance) AS attendance_after_wswin
+FROM teams
+WHERE wswin = 'Y'
+GROUP BY yearid, teamid, wswin, attendance, ghome
+ORDER BY yearid DESC, attendance_after_wswin
 
-/* 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
+WITH fans AS
+(SELECT yearid, teamid, ROUND(AVG(attendance)/ghome) AS avg_attendance, wswin
+FROM teams
+WHERE wswin = 'Y'
+GROUP BY yearid, teamid, ghome, wswin
+ORDER BY yearid DESC)
+
+SELECT fans.yearid, fans.teamid, avg_attendance, LEAD(avg_attendance,1) OVER (ORDER BY fans.yearid) AS attendance_after_wswin
+FROM teams
+JOIN fans
+USING (yearid)
+GROUP BY fans.yearid, ghome, avg_attendance, fans.teamid
+ORDER BY fans.yearid DESC
+
+SELECT
+playerid, hr
+                    --, lag(hr) OVER(ORDER BY yearid ASC) cummulative_sum
+, hr - lag(hr) over(order by yearid ASC) difference_from_previous_year
+FROM batting
+WHERE playerid LIKE 'bondsba01'
+group by playerid, yearid, hr
+
+-- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
