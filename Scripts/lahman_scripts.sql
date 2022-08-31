@@ -243,7 +243,7 @@ WHERE yearid >= 2000
 GROUP BY t.yearid, t.teamid, w
 ORDER BY t.yearid)
 
-SELECT salaries.yearid, salaries.teamid, total_team_salary, w, RANK() OVER(ORDER BY total_team_salary DESC) AS salary_rank, RANK() OVER(ORDER BY w DESC) AS w_rank, RANK() OVER(ORDER BY total_team_salary DESC) + RANK() OVER(ORDER BY w DESC) AS total_rank
+SELECT salaries.yearid, salaries.teamid, total_team_salary, w, RANK() OVER(ORDER BY total_team_salary DESC) AS salary_rank, RANK() OVER(ORDER BY w DESC) AS w_rank
 FROM salaries
 JOIN wins
 USING (yearid, teamid)
@@ -267,25 +267,67 @@ GROUP BY yearid, teamid, wswin, attendance, ghome
 ORDER BY yearid DESC, attendance_after_wswin
 
 WITH fans AS
-(SELECT yearid, teamid, ROUND(AVG(attendance)/ghome) AS avg_attendance, wswin
+(
+    SELECT yearid, teamid, attendance, wswin, LEAD(attendance, 1) OVER (PARTITION BY teamid) AS attendance_year2
 FROM teams
-WHERE wswin = 'Y'
-GROUP BY yearid, teamid, ghome, wswin
-ORDER BY yearid DESC)
+ -- WHERE wswin = 'Y'
+GROUP BY yearid, teamid, attendance, wswin
+ORDER BY yearid DESC
+)
 
 SELECT fans.yearid, fans.teamid, avg_attendance, LEAD(avg_attendance,1) OVER (ORDER BY fans.yearid) AS attendance_after_wswin
-FROM teams
-JOIN fans
-USING (yearid)
-GROUP BY fans.yearid, ghome, avg_attendance, fans.teamid
+FROM fans
+-- JOIN fans
+-- USING (yearid)
+GROUP BY fans.yearid, avg_attendance, fans.teamid
 ORDER BY fans.yearid DESC
 
 SELECT
-playerid, hr
-                    --, lag(hr) OVER(ORDER BY yearid ASC) cummulative_sum
-, hr - lag(hr) over(order by yearid ASC) difference_from_previous_year
+playerid, hr, hr - lag(hr) over(order by yearid ASC) difference_from_previous_year
 FROM batting
 WHERE playerid LIKE 'bondsba01'
 group by playerid, yearid, hr
 
+WITH fans AS
+(SELECT yearid, teamid, attendance/ghome AS avg_attendance, LEAD(attendance/ghome, 1) OVER (ORDER BY yearid) AS attendance_year2, wswin
+FROM teams 
+WHERE teamid = 'KCA' 
+GROUP BY teamid, attendance, yearid, wswin, ghome
+ORDER BY yearid DESC)
+
+SELECT yearid, teamid, fans.avg_attendance, fans.attendance_year2, attendance_year2 - avg_attendance AS diff, wswin
+FROM fans
+GROUP BY yearid, teamid, fans.avg_attendance, fans.attendance_year2, wswin
+ORDER BY yearid DESC
+
+
 -- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
+-- ANSWER: 
+
+WITH hand AS 
+(SELECT COUNT(DISTINCT playerid) AS pitchers_by_hand, throws, 
+    (SELECT COUNT(DISTINCT playerid) 
+    FROM pitching) AS total_pitchers
+FROM people
+JOIN pitching
+USING (playerid)
+GROUP BY throws)
+
+SELECT pitchers_by_hand, throws, CAST(pitchers_by_hand AS float)/CAST(total_pitchers AS float) AS perc_of_pitchers
+FROM hand
+GROUP BY throws, pitchers_by_hand, total_pitchers
+
+SELECT *
+FROM awardsplayers
+WHERE awardid = 'Cy Young Award'
+
+SELECT COUNT(DISTINCT playerid), throws, awardid
+FROM people 
+JOIN pitching 
+USING (playerid)
+JOIN awardsplayers AS a
+USING (playerid)
+WHERE awardid = 'Cy Young Award'
+GROUP BY throws, awardid
+
+
