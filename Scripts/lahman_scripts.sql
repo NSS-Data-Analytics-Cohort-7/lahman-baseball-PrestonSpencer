@@ -98,7 +98,7 @@ ORDER BY perc_sb_success DESC;
 -- ANSWER: 
 -- Largest number of wins - 116
 -- Smallest number of wins - 63 | Why so low? Only 110 games played in season
--- How often did team with most wins win World Series? 10 times | % of time? 21.7% 
+-- How often did team with most wins win World Series? 10 times | % of time? 25.5% 
 
 SELECT yearid, MAX(w), wswin
 FROM teams
@@ -133,11 +133,11 @@ WHERE yearid BETWEEN 1970 AND 2016 AND wswin = 'Y'
 GROUP BY yearid, wswin
 ORDER BY yearid, MAX(w))
 
-SELECT yearid, most_wins_yes, yes_winning.wswin, CAST(10 AS float)/CAST(2016-1970 AS float) AS perc_ws_winner_had_most_wins
+SELECT yearid, most_wins_yes, yes_winning.wswin, CAST(12 AS float)/CAST(2016-1970+1 AS float) AS perc_ws_winner_had_most_wins
 FROM no_winning
 JOIN yes_winning
 USING (yearid)
-WHERE most_wins_yes > most_wins_no
+WHERE most_wins_yes >= most_wins_no
 GROUP BY yearid, most_wins_yes, yes_winning.wswin
 ORDER BY yearid
 
@@ -251,6 +251,26 @@ WHERE salaries.yearid = 2000
 GROUP BY salaries.yearid, salaries.teamid, total_team_salary, w
 ORDER BY salaries.yearid, total_team_salary DESC, w DESC
 
+WITH team_total AS
+(SELECT yearid, teamid, SUM(salary) AS team_salary
+FROM salaries
+WHERE yearid >= 2000
+GROUP BY yearid, teamid),
+
+wins AS 
+(SELECT yearid, teamid, w
+FROM teams
+WHERE yearid >= 2000
+GROUP BY yearid, teamid, w)
+
+SELECT DISTINCT teamid, AVG(team_salary) OVER (PARTITION BY teamid) AS team_avg_salary, AVG(w) OVER (PARTITION BY teamid) AS team_avg_wins
+FROM team_total AS t
+JOIN wins
+USING (yearid, teamid)
+WHERE t.yearid >= 2000
+GROUP BY teamid, team_salary, w
+ORDER BY team_avg_salary DESC
+
 -- 12. In this question, you will explore the connection between number of wins and attendance. Does there appear to be any correlation between attendance at home games and number of wins? Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
 -- ANSWER:
 
@@ -325,7 +345,7 @@ SELECT COUNT(DISTINCT playerid), throws, awardid
 FROM people 
 JOIN pitching 
 USING (playerid)
-JOIN awardsplayers AS a
+JOIN awardsplayers 
 USING (playerid)
 WHERE awardid = 'Cy Young Award'
 GROUP BY throws, awardid
