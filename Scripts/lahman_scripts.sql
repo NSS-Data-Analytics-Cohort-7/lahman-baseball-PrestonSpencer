@@ -171,31 +171,34 @@ LIMIT 5
 -- 9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
 -- ANSWER: 
 
-WITH AL as
-(SELECT namefirst, namelast, awardid, m.lgid AS al_award, m.teamid
+WITH t1 AS
+(SELECT playerid, awardid, yearid, lgid
 FROM awardsmanagers
-JOIN managers AS m
+WHERE awardid LIKE 'TSN%' AND lgid = 'AL' 
+GROUP BY playerid, awardid, yearid, lgid),
+
+t2 AS
+(SELECT playerid, awardid, yearid, lgid
+FROM awardsmanagers
+WHERE awardid LIKE 'TSN%' AND lgid = 'NL' 
+GROUP BY playerid, awardid, yearid, lgid),
+
+plus AS
+(SELECT namefirst, namelast, teamid, playerid
+FROM awardsmanagers AS a
+JOIN managers 
 USING (playerid)
 JOIN people
 USING (playerid)
-WHERE awardid LIKE 'TSN%' AND m.lgid = 'AL' 
-GROUP BY namefirst, namelast, awardid, m.lgid, m.teamid),
+GROUP BY namefirst, namelast, teamid, playerid)
 
-NL as 
-(SELECT namefirst, namelast, awardid, m.lgid AS nl_award, m.teamid
-FROM awardsmanagers
-JOIN managers AS m
+SELECT namefirst, namelast, teamid
+FROM t1
+INNER JOIN t2
 USING (playerid)
-JOIN people
+JOIN plus
 USING (playerid)
-WHERE awardid LIKE 'TSN%' AND m.lgid = 'NL' 
-GROUP BY namefirst, namelast, awardid, m.lgid, m.teamid)
-
-SELECT namefirst, NL.namelast, AL.teamid, NL.awardid, al_award, nl_award
-FROM AL 
-JOIN NL
-USING (namefirst)
-GROUP BY namefirst, NL.namelast, AL.teamid, NL.awardid, al_award, nl_award
+GROUP BY namefirst, namelast, teamid
 
 -- 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
 -- ANSWER: 
