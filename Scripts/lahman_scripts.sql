@@ -200,27 +200,37 @@ GROUP BY namefirst, NL.namelast, AL.teamid, NL.awardid, al_award, nl_award
 -- 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
 -- ANSWER: 
 
-WITH most AS
-(SELECT playerid, namefirst, namelast, MAX(HR) AS hr_count, yearid,
-    CASE WHEN yearid = '2016' THEN '2016_most'
-    ELSE 'Not_2016' END AS Was_most_in_2016
+WITH players AS
+(SELECT DISTINCT playerid, MAX(HR) AS hr_count, namefirst, namelast
+FROM batting
+ JOIN people
+ USING (playerid)
+GROUP BY playerid, namefirst, namelast
+ORDER BY MAX(HR) DESC, playerid),
+
+plus AS
+(SELECT yearid, playerid, HR
 FROM people
 JOIN batting 
 USING (playerid)
-GROUP BY playerid, namefirst, namelast, yearid
-ORDER BY was_most_in_2016, hr_count DESC),
+ WHERE yearid = 2016
+GROUP BY yearid, playerid, HR), 
 
 years AS
 (SELECT playerid, COUNT(DISTINCT yearid) AS years_played
-FROM batting
+FROM batting 
+JOIN people
+USING (playerid)
 GROUP BY playerid)
 
-SELECT namefirst, namelast, hr_count
-FROM most
+SELECT players.playerid, namefirst, namelast, hr_count
+FROM players
+JOIN plus
+USING (playerid)
 JOIN years
 USING (playerid)
-WHERE years_played >= 10 AND Was_most_in_2016 = '2016_most' AND hr_count > 0
-GROUP BY namefirst, namelast, hr_count
+WHERE yearid = 2016 AND hr_count > 0 AND years_played >= 10 AND plus.HR = players.hr_count
+GROUP BY players.playerid, namefirst, namelast, hr_count, hr
 ORDER BY hr_count DESC
 
 
@@ -261,15 +271,25 @@ wins AS
 (SELECT yearid, teamid, w
 FROM teams
 WHERE yearid >= 2000
-GROUP BY yearid, teamid, w)
+GROUP BY yearid, teamid, w),
 
-SELECT DISTINCT teamid, AVG(team_salary) OVER (PARTITION BY teamid) AS team_avg_salary, AVG(w) OVER (PARTITION BY teamid) AS team_avg_wins
-FROM team_total AS t
+averages AS
+(SELECT DISTINCT teamid, AVG(team_salary) OVER (PARTITION BY teamid) AS team_avg_salary, AVG(w) OVER (PARTITION BY teamid) AS team_avg_wins
+FROM team_total 
 JOIN wins
 USING (yearid, teamid)
-WHERE t.yearid >= 2000
+WHERE team_total.yearid >= 2000
 GROUP BY teamid, team_salary, w
-ORDER BY team_avg_salary DESC
+ORDER BY team_avg_salary DESC)
+
+SELECT DISTINCT teamid, team_avg_salary, team_avg_wins, RANK() OVER(ORDER BY team_avg_salary DESC) AS salary_rank, RANK() OVER(ORDER BY team_avg_wins DESC) AS wins_rank
+FROM team_total
+JOIN wins 
+USING (yearid, teamid)
+JOIN averages
+USING (teamid)
+GROUP BY teamid, team_avg_salary, team_avg_wins
+ORDER BY wins_rank 
 
 -- 12. In this question, you will explore the connection between number of wins and attendance. Does there appear to be any correlation between attendance at home games and number of wins? Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
 -- ANSWER:
