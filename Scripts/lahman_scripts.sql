@@ -169,7 +169,7 @@ ORDER BY attendance_per_game DESC
 LIMIT 5
 
 -- 9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
--- ANSWER: 
+-- ANSWER: Davey Johnson and Jim Leyland
 
 WITH t1 AS
 (SELECT playerid, awardid, yearid, lgid
@@ -199,6 +199,7 @@ USING (playerid)
 JOIN plus
 USING (playerid)
 GROUP BY namefirst, namelast, teamid
+ORDER BY namefirst
 
 -- 10. Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
 -- ANSWER: 
@@ -298,38 +299,9 @@ ORDER BY wins_rank
 -- ANSWER:
 
 SELECT yearid, teamid, ROUND(AVG(attendance)/ghome) AS avg_attendance, ROUND(w) AS wins, ROUND((AVG(attendance)/ghome)/w) AS fans_per_win
--- wswin, divwin, wcwin
 FROM teams
 GROUP BY yearid, teamid, ghome, w
 ORDER BY yearid DESC, fans_per_win DESC, avg_attendance DESC, wins DESC
-
-SELECT yearid, teamid, wswin, ROUND(AVG(attendance)/ghome) AS avg_attendance, LEAD(ROUND(AVG(attendance)/ghome),1) OVER (PARTITION BY teamid ORDER BY attendance) AS attendance_after_wswin
-FROM teams
-WHERE wswin = 'Y'
-GROUP BY yearid, teamid, wswin, attendance, ghome
-ORDER BY yearid DESC, attendance_after_wswin
-
-WITH fans AS
-(
-    SELECT yearid, teamid, attendance, wswin, LEAD(attendance, 1) OVER (PARTITION BY teamid) AS attendance_year2
-FROM teams
- -- WHERE wswin = 'Y'
-GROUP BY yearid, teamid, attendance, wswin
-ORDER BY yearid DESC
-)
-
-SELECT fans.yearid, fans.teamid, avg_attendance, LEAD(avg_attendance,1) OVER (ORDER BY fans.yearid) AS attendance_after_wswin
-FROM fans
--- JOIN fans
--- USING (yearid)
-GROUP BY fans.yearid, avg_attendance, fans.teamid
-ORDER BY fans.yearid DESC
-
-SELECT
-playerid, hr, hr - lag(hr) over(order by yearid ASC) difference_from_previous_year
-FROM batting
-WHERE playerid LIKE 'bondsba01'
-group by playerid, yearid, hr
 
 WITH fans AS
 (SELECT yearid, teamid, attendance/ghome AS avg_attendance, LEAD(attendance/ghome, 1) OVER (ORDER BY yearid) AS attendance_year2, wswin
@@ -342,6 +314,28 @@ SELECT yearid, teamid, fans.avg_attendance, fans.attendance_year2, attendance_ye
 FROM fans
 GROUP BY yearid, teamid, fans.avg_attendance, fans.attendance_year2, wswin
 ORDER BY yearid DESC
+
+WITH t1 AS
+(SELECT yearid, teamid, attendance/ghome AS avg_attendance, wswin
+FROM teams
+GROUP BY yearid, teamid, attendance, ghome, wswin
+ORDER BY yearid DESC),
+
+t2 AS 
+(SELECT yearid, teamid, attendance/ghome AS avg_attendance, wswin
+FROM teams
+WHERE wswin = 'Y'
+GROUP BY yearid, teamid, attendance, ghome, wswin
+ORDER BY yearid DESC)
+
+SELECT t2.yearid AS ws_win_year, t2.teamid, t2.avg_attendance AS ws_yr_attendance, t1.avg_attendance AS yr_after_win_attendance
+FROM t1
+JOIN t2
+ON t2.yearid = t1.yearid + 1 AND t1.teamid = t2.teamid
+-- USING (yearid, teamid)
+-- WHERE t2.yearid = t1.yearid + 1
+GROUP BY t2.yearid, t2.teamid, t2.avg_attendance, t1.avg_attendance
+ORDER BY ws_win_year DESC
 
 
 -- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
