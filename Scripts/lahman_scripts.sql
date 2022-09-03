@@ -1,7 +1,7 @@
 -- 1. What range of years for baseball games played does the provided database cover? 
--- ANSWER: 1871 to 2016 - 145 years
+-- ANSWER: 1871 to 2016 - 146 years
 
-SELECT MIN(yearid), MAX(yearid), MAX(yearid)-MIN(yearid)
+SELECT MIN(yearid), MAX(yearid), MAX(yearid)-MIN(yearid), COUNT(DISTINCT yearid)
 FROM appearances;
 
 -- 2. Find the name and height of the shortest player in the database. How many games did he play in? What is the name of the team for which he played?
@@ -98,7 +98,7 @@ ORDER BY perc_sb_success DESC;
 -- ANSWER: 
 -- Largest number of wins - 116
 -- Smallest number of wins - 63 | Why so low? Only 110 games played in season
--- How often did team with most wins win World Series? 10 times | % of time? 25.5% 
+-- How often did team with most wins win World Series? 10 times | % of time? 26.1% 
 
 SELECT yearid, MAX(w), wswin
 FROM teams
@@ -133,7 +133,7 @@ WHERE yearid BETWEEN 1970 AND 2016 AND wswin = 'Y'
 GROUP BY yearid, wswin
 ORDER BY yearid, MAX(w))
 
-SELECT yearid, most_wins_yes, yes_winning.wswin, CAST(12 AS float)/CAST(2016-1970+1 AS float) AS perc_ws_winner_had_most_wins
+SELECT yearid, most_wins_yes, yes_winning.wswin, CAST(12 AS float)/CAST(2016-1970 AS float) AS perc_ws_winner_had_most_wins
 FROM no_winning
 JOIN yes_winning
 USING (yearid)
